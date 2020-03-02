@@ -1,132 +1,160 @@
+///MIMI QUESTIONS:
+// how to get taps from individual users?
+// debounce on "tap"?
+
 //open and connect input socket
-let socket = io('/output');
+let socket = io("/output");
 
 //listen to connection
 
-socket.on('connect', () => {
-    console.log('Connected!');
-})
+socket.on("connect", () => {
+  console.log("Connected!");
+});
 
-//keep track of partners
 let users = {};
-//keep track of taps?
-// let pTap;
+let tap = false;
 
+let state = 0;
+let count = 5;
+let score = 0;
 
 let gif_createImg;
 let flame;
-let gameOn = false;
+let flameOpacity;
 
 function preload() {
-    // gif_loadImg = loadImage("vegetables.gif");
-    flame = loadImage("flame.jpg");
-    gif_createImg = createImg("hearteyes.gif");
-
-
+  flame = loadImage("flame.jpg");
+  // gif_createImg = createImg("hearteyes.gif");
 }
+
 function setup() {
-    createCanvas(windowWidth, windowHeight);
-    imageMode(CENTER)
+  createCanvas(windowWidth, windowHeight);
+  imageMode(CENTER);
+  //listen for a message
+  socket.on("message", function(message) {
+    let id = message.id;
+    let click = message.data;
+    // console.log('got a click', id, click);
+    users[id] = click;
+    // console.log(users[id]);
 
-    //listen for a message
-    socket.on('message', () => {
-        let id = message.id;
-        let data = message.data;
-    })
-
-    socket.on('disconnected', () => {
-        delete users[id];
-    })
-
+    //need to debounce
+    tap = true;
+  });
 }
 
 function draw() {
-    background(255);
-    let score = 0;
-    let flameOpacity = 20;
+  background(255);
 
-    //if there are two players, calculate the time between cellphone taps
-    if (users_arr.length === 2) {
+  let counter = 0;
+  let users_arr = [];
 
-        if (!gameOn) {
-            startGame();
-        };
+  //         //loop through the users and check their taps
+  for (let u in users) {
+    let user = users[u];
+    // console.log(user);
+    users_arr[counter] = users[u];
 
-        //keep track of taps for each user
-        //   let pTap = null;
-        let counter = null;
+    // console.log(users_arr[counter]);
+    counter++;
+    if (counter >= 2) break;
+  }
 
-        let users_arr = [];
+  //check if there's data
+  //if (users_arr.length > 1 && tap) {
+  if (users_arr.length > 1) {
+    let input1 = users_arr[0].time;
+    let input2 = users_arr[1].time;
+    if (input1 && input2) {
+      ellipse
+      ellipse
+      console.log(input1, input2);
+      let value = input1 - input2;
+      if (Math.abs(input1 - input2) < 1000) {
+        console.log("win", value);
+        tap = false;
+      } else {
+        console.log("lose", value);
+        tap = false;
+      }
+      // Clean out data
+      for(let u in users) {
+        users[u] = null;
+      }
+    }
+  }
 
-        //loop through the users and check their taps
-        for (let u in users) {
-            let user = users[u];
+  noStroke();
 
-            //check the time of tap for each user??
-            // unknown variables lol
+  if (state == 0) {
+    startPage();
+    if (mouseIsPressed) {
+      socket.emit("start");
+      console.log("emitting start from output");
+      state = 1;
+    }
+  }
+  if (state == 1) {
+    countdown();
+  }
+  if (state == 2) {
+    scorePage();
+  }
+  // }
 
-            //store user in array of users
-            users_arr[counter] = users[u];
+  // }
+}
 
-            counter++;
-        }
-        let t = null; //time between taps
+function startPage() {
+  textSize(width / 40);
+  text("Are you ready to gaze?", width * 0.38, height * 0.2);
+  text("click to start", width * 0.44, height * 0.28);
+}
 
-        //if the taps are within 1 second of each other,
-        if (t < millis(1000)) {
-            score += 1;
-        } else {
-            score = 0;
-        }
+function countdown() {
+  background(255);
+  if (count > 0) {
+    text(count, width / 2, height / 2);
+    if (frameCount % 60 == 0) {
+      count--;
+    }
+  } else {
+    state = 2;
+  }
+}
 
-        noStroke();
+function scorePage() {
+  flameOpacity = 10;
+  // text("score", width / 2, height / 2 - 100);
+  textSize(width / 10);
+  text(score, width / 2, height / 2 + 100);
+  textSize(width / 30);
 
-        //if user_arr[0] taps ==>
-        fill(255, 0, 0);
-        ellipse(width * 0.2, height / 4, 200)
+  //if user_arr[0] taps ==>
+  fill(255, 0, 0);
+  ellipse(width * 0.2, height / 4, width / 12);
 
-        //if user_arr[1] taps ==>
-        fill(0, 0, 255);
-        ellipse(width * 0.8, height / 4, 200)
+  //if user_arr[1] taps ==>
+  fill(0, 0, 255);
+  ellipse(width * 0.8, height / 4, width / 12);
 
-        //flame 
-        tint(255, flameOpacity);
-        image(flame, width * .51, height / 9);
+  //flame
+  tint(255, flameOpacity);
+  image(flame, width * 0.51, height / 9);
 
-        //show either way
-        textSize(18);
-        fill(0);
-        text('Player 1', width * 0.18, height / 4);
-        text('Player 2', width * 0.78, height / 4);
+  //show either way
+  textSize(18);
+  fill(0);
+  text("Player 1", width * 0.18, height / 2);
+  text("Player 2", width * 0.78, height / 2);
 
-        textSize(25);
-        text('Score: ' + score, width * 0.48, height / 4);
+  // gif_createImg.position(width * .45, height * .6);
 
-        gif_createImg.position(width * .45, height * .6);
-
-        /*
+  /*
         } else {
             text(windowWidth, windowHeight, "you need two players");
         }
     
         */
-    }
-}
-
-function startGame() {
-    console.log('game start');
-    let timer = setInterval(() => {
-        gameOn = true;
-        // sec--;
-        let canClick = true;
-        // if (sec < 0) {
-        //     clearInterval(timer);
-        //     canClick = false;
-        //     sec = 5;
-        //     replaceText();
-        //     isInGame = false;
-        // }
-        socket.emit('click', canClick);
-        // console.log(sec);
-    }, 1000);
+  // }
 }
